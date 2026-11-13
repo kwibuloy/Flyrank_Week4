@@ -3,11 +3,13 @@
 from fastapi import APIRouter, Depends
 
 from app.dependencies import AuthContext, require_auth
+from app.schemas import UNAUTHORIZED, Dashboard, Profile
 
 router = APIRouter(
     prefix="/protected",
     tags=["Protected"],
     dependencies=[Depends(require_auth)],
+    responses=UNAUTHORIZED,
 )
 
 
@@ -15,7 +17,7 @@ def iso(value) -> str | None:
     return value.isoformat() if value else None
 
 
-@router.get("/profile")
+@router.get("/profile", response_model=Profile)
 def profile(auth: AuthContext = Depends(require_auth)):
     """The verified user's account details."""
     user = auth.user
@@ -27,7 +29,7 @@ def profile(auth: AuthContext = Depends(require_auth)):
     }
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=Dashboard)
 def dashboard(auth: AuthContext = Depends(require_auth)):
     """A second protected route using the same dependency."""
     return {

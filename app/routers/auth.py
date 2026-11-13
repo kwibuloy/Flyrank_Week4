@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from supabase_auth.errors import AuthApiError, AuthError
 
 from app.dependencies import AuthContext, require_auth
+from app.schemas import BAD_REQUEST, UNAUTHORIZED, LoginResponse, SignupResponse, error_response
 from app.supabase_client import create_supabase_client, supabase
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -33,7 +34,7 @@ def error(status: int, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": message})
 
 
-@router.post("/signup", status_code=201)
+@router.post("/signup", status_code=201, response_model=SignupResponse, responses=BAD_REQUEST)
 def signup(body: Credentials | None = None):
     """Register a new user with Supabase Auth."""
     credentials = read_credentials(body)
@@ -50,7 +51,14 @@ def signup(body: Credentials | None = None):
     return {"user": result.user.model_dump(mode="json") if result.user else None}
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    responses={
+        **BAD_REQUEST,
+        401: error_response("Wrong email or password", invalid="Invalid login credentials"),
+    },
+)
 def login(body: Credentials | None = None):
     """Exchange email/password for an access token and refresh token."""
     credentials = read_credentials(body)
@@ -73,7 +81,7 @@ def login(body: Credentials | None = None):
     }
 
 
-@router.post("/logout", status_code=204)
+@router.post("/logout", status_code=204, response_class=Response, responses=UNAUTHORIZED)
 def logout(auth: AuthContext = Depends(require_auth)):
     """Protected: end the session that issued this access token.
 

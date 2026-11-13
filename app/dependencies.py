@@ -3,12 +3,22 @@ valid Supabase access token."""
 
 from dataclasses import dataclass
 
-from fastapi import Request
+from fastapi import Request, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase_auth.errors import AuthError
 from supabase_auth.types import User
 
 from app.supabase_client import supabase
 from app.token import extract_bearer_token
+
+# Registers the "bearerAuth" scheme in the OpenAPI spec, which gives Swagger UI its
+# Authorize button and lock icons. auto_error=False: we write our own 401 messages.
+bearer_scheme = HTTPBearer(
+    scheme_name="bearerAuth",
+    bearerFormat="JWT",
+    description="Paste the access_token returned by POST /auth/login.",
+    auto_error=False,
+)
 
 
 class Unauthorized(Exception):
@@ -25,7 +35,10 @@ class AuthContext:
     token: str  # the raw access token
 
 
-def require_auth(request: Request) -> AuthContext:
+def require_auth(
+    request: Request,
+    _credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+) -> AuthContext:
     token = extract_bearer_token(request)
     if not token:
         raise Unauthorized("Access token required")
