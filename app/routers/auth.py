@@ -1,10 +1,11 @@
 """/auth routes: sign up and log in with Supabase Auth."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase_auth.errors import AuthApiError, AuthError
 
+from app.dependencies import AuthContext, require_auth
 from app.supabase_client import create_supabase_client, supabase
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -70,3 +71,17 @@ def login(body: Credentials | None = None):
         "expires_in": session.expires_in,
         "user": {"id": user.id, "email": user.email},
     }
+
+
+@router.post("/logout", status_code=204)
+def logout(auth: AuthContext = Depends(require_auth)):
+    """Protected: end the session that issued this access token.
+
+    supabase-py signs out a given access token through auth.admin.sign_out(jwt);
+    it only needs the user's own JWT and the anon key, not the service role key.
+    """
+    try:
+        supabase.auth.admin.sign_out(auth.token)
+    except AuthApiError as err:
+        return error(err.status or 500, err.message)
+    return Response(status_code=204)

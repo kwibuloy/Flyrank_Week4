@@ -1,13 +1,14 @@
-"""/protected routes: need "Authorization: Bearer <token>"."""
+"""/protected routes: every route here runs only after require_auth has verified the token."""
 
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from supabase_auth.errors import AuthError
+from fastapi import APIRouter, Depends
 
-from app.supabase_client import supabase
-from app.token import extract_bearer_token
+from app.dependencies import AuthContext, require_auth
 
-router = APIRouter(prefix="/protected", tags=["Protected"])
+router = APIRouter(
+    prefix="/protected",
+    tags=["Protected"],
+    dependencies=[Depends(require_auth)],
+)
 
 
 def iso(value) -> str | None:
@@ -15,24 +16,21 @@ def iso(value) -> str | None:
 
 
 @router.get("/profile")
-def profile(request: Request):
-    """Requires a bearer token, and the token is verified with Supabase
-    before any user data is returned."""
-    token = extract_bearer_token(request)
-    if not token:
-        return JSONResponse(status_code=401, content={"error": "Access token required"})
-
-    try:
-        result = supabase.auth.get_user(token)
-    except AuthError:
-        result = None
-    if result is None or result.user is None:
-        return JSONResponse(status_code=401, content={"error": "Invalid or expired token"})
-
-    user = result.user
+def profile(auth: AuthContext = Depends(require_auth)):
+    """The verified user's account details."""
+    user = auth.user
     return {
         "id": user.id,
         "email": user.email,
         "created_at": iso(user.created_at),
         "last_sign_in_at": iso(user.last_sign_in_at),
+    }
+
+
+@router.get("/dashboard")
+def dashboard(auth: AuthContext = Depends(require_auth)):
+    """A second protected route using the same dependency."""
+    return {
+        "message": f"Welcome to your dashboard, {auth.user.email}!",
+        "user_id": auth.user.id,
     }

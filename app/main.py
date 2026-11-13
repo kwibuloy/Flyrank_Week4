@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from app.dependencies import Unauthorized
 from app.routers import auth, protected, public
 from app.supabase_client import check_supabase_connection
 
@@ -37,6 +38,11 @@ app = FastAPI(
 app.include_router(auth.router)
 app.include_router(public.router)
 app.include_router(protected.router)
+
+
+@app.exception_handler(Unauthorized)
+async def unauthorized(request: Request, exc: Unauthorized) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"error": exc.message})
 
 
 @app.exception_handler(RequestValidationError)
