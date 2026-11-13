@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from app.routers import auth
+from app.routers import auth, protected, public
 from app.supabase_client import check_supabase_connection
 
 PORT = int(os.getenv("PORT") or 3000)
@@ -35,6 +35,8 @@ app = FastAPI(
 )
 
 app.include_router(auth.router)
+app.include_router(public.router)
+app.include_router(protected.router)
 
 
 @app.exception_handler(RequestValidationError)
