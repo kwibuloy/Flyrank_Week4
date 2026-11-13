@@ -7,9 +7,11 @@ import os
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse, JSONResponse
 
+from app.routers import auth
 from app.supabase_client import check_supabase_connection
 
 PORT = int(os.getenv("PORT") or 3000)
@@ -31,6 +33,16 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
+
+app.include_router(auth.router)
+
+
+@app.exception_handler(RequestValidationError)
+async def bad_request_body(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Malformed JSON bodies get a JSON 400 instead of FastAPI's default 422."""
+    if any(e.get("type") == "json_invalid" for e in exc.errors()):
+        return JSONResponse(status_code=400, content={"error": "Request body must be valid JSON"})
+    return JSONResponse(status_code=400, content={"error": "Invalid request body"})
 
 
 LANDING_PAGE = """<!doctype html>
