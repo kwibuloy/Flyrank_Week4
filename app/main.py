@@ -1,0 +1,55 @@
+"""FastAPI server secured with Supabase Auth.
+
+Run with:  python -m app.main
+"""
+
+import os
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+
+from app.supabase_client import check_supabase_connection
+
+PORT = int(os.getenv("PORT") or 3000)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Fail fast: a wrong URL or key stops the server before it takes any requests.
+    check_supabase_connection()
+    print(f"Server running and connected to Supabase on http://localhost:{PORT}")
+    yield
+
+
+app = FastAPI(
+    title="Supabase Auth API",
+    lifespan=lifespan,
+    # Interactive docs are switched on in a later stage.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+
+
+LANDING_PAGE = """<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Supabase Auth API</title></head>
+  <body style="font-family: system-ui, sans-serif; margin: 40px">
+    <main>
+      <h1>Supabase Auth API</h1>
+      <p>A FastAPI API secured with Supabase Auth.</p>
+    </main>
+  </body>
+</html>
+"""
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def home() -> str:
+    return LANDING_PAGE
+
+
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="127.0.0.1", port=PORT)
